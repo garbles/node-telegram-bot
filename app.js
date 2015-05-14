@@ -24,9 +24,9 @@ setTimeout(function() {
             // telegram cli constantly outputs '>', don't bother trying to parse those
             if (lines.length > 1) {
                 // telegram cli uses ansi color codes...need to strip them for parsing
-                lines = _.map(lines, function(line) {
-                    return stripAnsi(line);
-                });
+                //lines = _.map(lines, function(line) {
+                //    return stripAnsi(line);
+                //});
 
                 // Message output should always be in the first line of data
                 if (lines[0].indexOf('>>>') > -1) {
@@ -41,15 +41,15 @@ setTimeout(function() {
 
 function parseCLIOutput(data) {
     var splitData = data.split(' >>> ');
-
     // Message is always the last element
     var message = splitData[splitData.length - 1];
-    var metaData = splitData[0].split(' ');
-
+    message = stripAnsi(message);
+    var metaData = splitData[0].split('\u001b');
     //User/Group to send to will always be the 3rd element.
     // User who sent the message is always last element of meta data.
-    var sendTo = metaData[2];
-    var user = metaData[metaData.length - 1];
+    // Above statement is lies, does not account for spaces in user or group name
+    var sendTo = metaData[4].replace('[35;1m', '').replace(' ', '_');
+    var user = metaData[7].replace('[0;31m;', '').replace('[1;31m', '').replace(' ', '_');
 
     return {
         sendTo: sendTo,
@@ -62,8 +62,8 @@ function parseMessage(message) {
     var commandIdentifier = message.substring(0, 2);
     message = message.substring(2, message.length);
 
-    // Only process messages that start with "#!" as commands
-    if (commandIdentifier === '#!') {
+    // Only process messages that start with "!" as commands
+    if (commandIdentifier === '!') {
         var command = message.match(/^[^\s]+/);
 
         // Should always be 1
@@ -86,10 +86,15 @@ function parseMessage(message) {
 
 function processCommand(commandObj) {
     // Find command processor from config file
+    //console.log(Config);
     var commandConfig = _.find(Config.commands, function(c) {
+        //console.log(c);
         return c.command === commandObj.command.command;
     });
-
+    //console.log('-----config-----');
+    //console.log(commandConfig);
+   // console.log('-----obj------');
+    console.log(commandObj);
     if (commandConfig) {
         // Check if the command was already proccessed previously.
         if (!CommandProcessers[commandConfig.command]) {
