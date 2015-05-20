@@ -44,23 +44,41 @@ function parseCLIOutput(data) {
     // Message is always the last element
     var message = splitData[splitData.length - 1];
     message = stripAnsi(message);
-    var metaData = splitData[0].split('\u001b');
+    var split = splitData[0].replace(/\[35\;1m/g, '');
+    split = split.replace(/\[0\;31m/g, '');
+    split = split.replace(/\[1\;31m/g, '');
+    split = split.replace(/\[0m/g, '');
+    split = split.replace(/\[34\;1m/g, '');
+    split = split.replace(/\[32\;1m/g, '');
+    split = split.replace(/\r/, '');
+    split = split.replace(/\[K/, '');
+    split = split.replace(/\u001b\s/g, '\u001b');
+    split = split.replace(/\s\u001b/g, '\u001b');
+    split = split.replace(/\u001b\u001b/g, '\u001b');
+
     //User/Group to send to will always be the 3rd element.
     // User who sent the message is always last element of meta data.
     // Above statement is lies, does not account for spaces in user or group name
-    var sendTo = metaData[4].replace('[35;1m', '').replace(' ', '_');
-    var user = metaData[7].replace('[0;31m;', '').replace('[1;31m', '').replace(' ', '_');
+    
+    var splitarr= split.split('\u001b');
+    var sendTo = splitarr[2].replace(/\s/g, '_');
+    var user = splitarr[3].replace(/\s/g, '_');  
 
-    return {
-        sendTo: sendTo,
-        user: user,
-        message: message
-    };
+    if (user == '') {
+      if (splitarr.length > 4) {
+        user = splitarr[4].replace(/\s/g, '_');
+      } else {
+        user = splitarr[2].replace(/\s/g, '_');
+      }
+    }
+
+    var obj = {sendTo: sendTo, user: user, message: message};
+    return obj;
 }
 
 function parseMessage(message) {
-    var commandIdentifier = message.substring(0, 2);
-    message = message.substring(2, message.length);
+    var commandIdentifier = message.substring(0, 1);
+    message = message.substring(1, message.length);
 
     // Only process messages that start with "!" as commands
     if (commandIdentifier === '!') {
@@ -86,15 +104,10 @@ function parseMessage(message) {
 
 function processCommand(commandObj) {
     // Find command processor from config file
-    //console.log(Config);
     var commandConfig = _.find(Config.commands, function(c) {
         //console.log(c);
         return c.command === commandObj.command.command;
     });
-    //console.log('-----config-----');
-    //console.log(commandConfig);
-   // console.log('-----obj------');
-    console.log(commandObj);
     if (commandConfig) {
         // Check if the command was already proccessed previously.
         if (!CommandProcessers[commandConfig.command]) {
